@@ -10,17 +10,20 @@
 #include <hal/Ports.h>
 #include <mockdata/PWMData.h>
 
-void HALSimWSProviderPWM::Initialize() {
-  InitializeDefault(HAL_GetNumPWMChannels(), HALSIM_RegisterPWMAllCallbacks);
+void HALSimWSProviderPWM::Initialize(std::weak_ptr<HALSimWeb> web,
+                                     WSRegisterFunc webRegisterFunc) {
+  CreateProviders<HALSimWSProviderPWM>("PWM", HAL_GetNumPWMChannels(),
+                                       HALSIM_RegisterPWMAllCallbacks, web,
+                                       webRegisterFunc);
 }
 
-wpi::json HALSimWSProviderPWM::OnSimValueChanged(uint32_t chan) {
+wpi::json HALSimWSProviderPWM::OnSimValueChanged() {
   return {
-      {"<init", (bool)HALSIM_GetPWMInitialized(chan)},
-      {"<speed", HALSIM_GetPWMSpeed(chan)},
-      {"<position", HALSIM_GetPWMPosition(chan)},
-      {"<raw", HALSIM_GetPWMRawValue(chan)},
-      {"<period_scale", HALSIM_GetPWMPeriodScale(chan)},
-      {"<zero_latch", (bool)HALSIM_GetPWMZeroLatch(chan)},
+      {"<init", (bool)HALSIM_GetPWMInitialized(m_channel)},
+      {"<speed", HALSIM_GetPWMSpeed(m_channel)},
+      {"<position", HALSIM_GetPWMPosition(m_channel)},
+      {"<raw", HALSIM_GetPWMRawValue(m_channel)},
+      {"<period_scale", HALSIM_GetPWMPeriodScale(m_channel)},
+      {"<zero_latch", (bool)HALSIM_GetPWMZeroLatch(m_channel)},
   };
 }

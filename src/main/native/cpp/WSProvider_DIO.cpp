@@ -10,24 +10,25 @@
 #include <hal/Ports.h>
 #include <mockdata/DIOData.h>
 
-void HALSimWSProviderDIO::Initialize() {
-  InitializeDefault(HAL_GetNumDigitalChannels(),
-                    HALSIM_RegisterDIOAllCallbacks);
+void HALSimWSProviderDIO::Initialize(std::weak_ptr<HALSimWeb> web,
+                                     WSRegisterFunc webRegisterFunc) {
+  CreateProviders<HALSimWSProviderDIO>("DIO", HAL_GetNumDigitalChannels(),
+                                       HALSIM_RegisterDIOAllCallbacks, web,
+                                       webRegisterFunc);
 }
 
-wpi::json HALSimWSProviderDIO::OnSimValueChanged(uint32_t chan) {
+wpi::json HALSimWSProviderDIO::OnSimValueChanged() {
   return {
-      {"<init", (bool)HALSIM_GetDIOInitialized(chan)},
-      {"<>value", (bool)HALSIM_GetDIOValue(chan)},
-      {"<pulse_length", HALSIM_GetDIOPulseLength(chan)},
-      {"<input", (bool)HALSIM_GetDIOIsInput(chan)},
+      {"<init", (bool)HALSIM_GetDIOInitialized(m_channel)},
+      {"<>value", (bool)HALSIM_GetDIOValue(m_channel)},
+      {"<pulse_length", HALSIM_GetDIOPulseLength(m_channel)},
+      {"<input", (bool)HALSIM_GetDIOIsInput(m_channel)},
   };
 }
 
-void HALSimWSProviderDIO::OnNetValueChanged(const CallbackInfo& info,
-                                            const wpi::json& json) {
+void HALSimWSProviderDIO::OnNetValueChanged(const wpi::json& json) {
   wpi::json::const_iterator it;
   if ((it = json.find("<>value")) != json.end()) {
-    HALSIM_SetDIOValue(info.channel, (bool)it.value());
+    HALSIM_SetDIOValue(m_channel, (bool)it.value());
   }
 }

@@ -10,15 +10,17 @@
 #include <hal/Ports.h>
 #include <mockdata/DigitalPWMData.h>
 
-void HALSimWSProviderDigitalPWM::Initialize() {
-  InitializeDefault(HAL_GetNumDigitalPWMOutputs(),
-                    HALSIM_RegisterDigitalPWMAllCallbacks);
+void HALSimWSProviderDigitalPWM::Initialize(std::weak_ptr<HALSimWeb> web,
+                                            WSRegisterFunc webRegisterFunc) {
+  CreateProviders<HALSimWSProviderDigitalPWM>(
+      "dPWM", HAL_GetNumDigitalPWMOutputs(),
+      HALSIM_RegisterDigitalPWMAllCallbacks, web, webRegisterFunc);
 }
 
-wpi::json HALSimWSProviderDigitalPWM::OnSimValueChanged(uint32_t chan) {
+wpi::json HALSimWSProviderDigitalPWM::OnSimValueChanged() {
   return {
-      {"<init", (bool)HALSIM_GetDigitalPWMInitialized(chan)},
-      {"<dio_pin", HALSIM_GetDigitalPWMPin(chan)},
-      {"<duty_cycle", HALSIM_GetDigitalPWMDutyCycle(chan)},
+      {"<init", (bool)HALSIM_GetDigitalPWMInitialized(m_channel)},
+      {"<dio_pin", HALSIM_GetDigitalPWMPin(m_channel)},
+      {"<duty_cycle", HALSIM_GetDigitalPWMDutyCycle(m_channel)},
   };
 }

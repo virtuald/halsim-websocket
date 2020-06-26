@@ -13,11 +13,14 @@
 #include <hal/Ports.h>
 #include <mockdata/DriverStationData.h>
 
-void HALSimWSProviderDriverStation::Initialize() {
-  InitializeDefaultSingle(HALSIM_RegisterDriverStationAllCallbacks);
+void HALSimWSProviderDriverStation::Initialize(std::weak_ptr<HALSimWeb> web,
+                                               WSRegisterFunc webRegisterFunc) {
+  CreateSingleProvider<HALSimWSProviderDriverStation>(
+      "DriverStation", HALSIM_RegisterDriverStationAllCallbacks, web,
+      webRegisterFunc);
 }
 
-wpi::json HALSimWSProviderDriverStation::OnSimValueChanged(uint32_t chan) {
+wpi::json HALSimWSProviderDriverStation::OnSimValueChanged() {
   wpi::json joysticks;
   for (int i = 0; i < HAL_kMaxJoysticks; i++) {
     HAL_JoystickAxes axes;
@@ -77,8 +80,7 @@ wpi::json HALSimWSProviderDriverStation::OnSimValueChanged(uint32_t chan) {
   };
 }
 
-void HALSimWSProviderDriverStation::OnNetValueChanged(const CallbackInfo& info,
-                                                      const wpi::json& json) {
+void HALSimWSProviderDriverStation::OnNetValueChanged(const wpi::json& json) {
   wpi::json::const_iterator it;
   if ((it = json.find(">enabled")) != json.end()) {
     HALSIM_SetDriverStationEnabled(it.value());

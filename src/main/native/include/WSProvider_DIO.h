@@ -9,12 +9,15 @@
 
 #include <memory>
 
-#include "WSProvider.h"
+#include "WSHalProviders.h"
 
-class HALSimWSProviderDIO : public HALSimWSProvider {
+class HALSimWSProviderDIO : public HALSimWSHalChanProvider {
  public:
-  void Initialize() override;
-  wpi::json OnSimValueChanged(uint32_t chan) override;
-  void OnNetValueChanged(const CallbackInfo& info,
-                         const wpi::json& json) override;
+  static void Initialize(std::weak_ptr<HALSimWeb> web,
+                         WSRegisterFunc webRegisterFunc);
+
+  using HALSimWSHalChanProvider::HALSimWSHalChanProvider;
+
+  wpi::json OnSimValueChanged() override;
+  void OnNetValueChanged(const wpi::json& json) override;
 };

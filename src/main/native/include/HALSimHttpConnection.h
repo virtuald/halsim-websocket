@@ -14,6 +14,7 @@
 
 #include <wpi/json.h>
 #include <wpi/mutex.h>
+#include <wpi/uv/Buffer.h>
 
 #include "WebSocketServerConnection.h"
 
@@ -21,12 +22,16 @@ class HALSimWeb;
 
 class HALSimHttpConnection : public wpi::WebSocketServerConnection {
  public:
+  using ReleaseFunc =
+      std::function<void(wpi::MutableArrayRef<wpi::uv::Buffer>)>;
+
   explicit HALSimHttpConnection(HALSimWeb* hws,
                                 std::shared_ptr<wpi::uv::Stream> stream)
       : wpi::WebSocketServerConnection(stream, {}), m_hws(hws) {}
 
  public:
-  void OnSimValueChanged(const wpi::json& msg);
+  void OnSimValueChanged(wpi::ArrayRef<wpi::uv::Buffer> data,
+                         ReleaseFunc release);
 
  protected:
   void ProcessRequest() override;

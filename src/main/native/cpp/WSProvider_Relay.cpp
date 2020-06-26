@@ -10,15 +10,18 @@
 #include <hal/Ports.h>
 #include <mockdata/RelayData.h>
 
-void HALSimWSProviderRelay::Initialize() {
-  InitializeDefault(HAL_GetNumRelayHeaders(), HALSIM_RegisterRelayAllCallbacks);
+void HALSimWSProviderRelay::Initialize(std::weak_ptr<HALSimWeb> web,
+                                       WSRegisterFunc webRegisterFunc) {
+  CreateProviders<HALSimWSProviderRelay>("Relay", HAL_GetNumRelayHeaders(),
+                                         HALSIM_RegisterRelayAllCallbacks, web,
+                                         webRegisterFunc);
 }
 
-wpi::json HALSimWSProviderRelay::OnSimValueChanged(uint32_t chan) {
+wpi::json HALSimWSProviderRelay::OnSimValueChanged() {
   return {
-      {"<init_fwd", (bool)HALSIM_GetRelayInitializedForward(chan)},
-      {"<init_rev", (bool)HALSIM_GetRelayInitializedReverse(chan)},
-      {"<fwd", (bool)HALSIM_GetRelayForward(chan)},
-      {"<rev", (bool)HALSIM_GetRelayReverse(chan)},
+      {"<init_fwd", (bool)HALSIM_GetRelayInitializedForward(m_channel)},
+      {"<init_rev", (bool)HALSIM_GetRelayInitializedReverse(m_channel)},
+      {"<fwd", (bool)HALSIM_GetRelayForward(m_channel)},
+      {"<rev", (bool)HALSIM_GetRelayReverse(m_channel)},
   };
 }

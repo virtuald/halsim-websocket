@@ -8,16 +8,26 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
-#include "WSHalProviders.h"
+#include <wpi/json.h>
 
-class HALSimWSProviderDriverStation : public HALSimWSHalProvider {
+class HALSimWeb;
+
+class HALSimWSBaseProvider {
  public:
-  static void Initialize(std::weak_ptr<HALSimWeb> web,
-                         WSRegisterFunc webRegisterFunc);
+  explicit HALSimWSBaseProvider(const std::string& key,
+                                std::weak_ptr<HALSimWeb> web);
+  virtual ~HALSimWSBaseProvider() {}
 
-  using HALSimWSHalProvider::HALSimWSHalProvider;
+  // network -> sim
+  virtual void OnNetValueChanged(const wpi::json& json);
 
-  wpi::json OnSimValueChanged() override;
-  void OnNetValueChanged(const wpi::json& json) override;
+ protected:
+  // sim -> network
+  void SendUpdateToNet(const wpi::json& update);
+
+ private:
+  std::string m_key;
+  std::weak_ptr<HALSimWeb> m_web;
 };

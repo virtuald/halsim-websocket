@@ -13,29 +13,32 @@
 #include <wpi/json.h>
 #include <wpi/mutex.h>
 #include <wpi/StringMap.h>
+#include <wpi/uv/Buffer.h>
 #include <wpi/uv/AsyncFunction.h>
 #include <wpi/uv/Loop.h>
 #include <wpi/uv/Tcp.h>
 
+#include "WSBaseProvider.h"
+
 class HALSimHttpConnection;
-class HALSimWSProvider::CallbackInfo;
 
 class HALSimWeb {
  public:
   using LoopFunc = std::function<void(void)>;
-  using UvExecFunc = uv::AsyncFunction<void(LoopFunc)>;
+  using UvExecFunc = wpi::uv::AsyncFunction<void(LoopFunc)>;
+  using ProviderList = wpi::StringMap<std::unique_ptr<HALSimWSBaseProvider>>;
+
+  HALSimWeb(ProviderList& providers) : m_providers(providers) {}
 
   bool Initialize();
   static void Main(void*);
   static void Exit(void*);
 
-  void RegisterProvider(HALSimWSProvider::CallbackInfo* cb);
-
   bool RegisterWebsocket(std::shared_ptr<HALSimHttpConnection> hws);
   void CloseWebsocket(std::shared_ptr<HALSimHttpConnection> hws);
 
   // sim -> network
-  void OnSimValueChanged(const wpi::json& msg);
+  void SendUpdateToNet(const wpi::json& msg);
 
   // network -> sim
   void OnNetValueChanged(const wpi::json& msg);
@@ -50,10 +53,15 @@ class HALSimWeb {
   std::weak_ptr<HALSimHttpConnection> m_hws;
 
   // list of providers
-  wpi::StringMap<HALSimWSProvider::CallbackInfo*> m_providers;
+  ProviderList& m_providers;
 
   std::shared_ptr<wpi::uv::Loop> m_loop;
   std::shared_ptr<wpi::uv::Tcp> m_server;
 
+  // allows execution on main loop from threads
   std::weak_ptr<UvExecFunc> m_exec;
+
+  // reusable buffers for sending data
+  wpi::uv::SimpleBufferPool<4> m_buffers;
+  wpi::mutex m_buffers_mutex;
 };

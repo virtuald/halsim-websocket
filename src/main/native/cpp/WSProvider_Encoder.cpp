@@ -10,29 +10,32 @@
 #include <hal/Ports.h>
 #include <mockdata/EncoderData.h>
 
-void HALSimWSProviderEncoder::Initialize() {
-  InitializeDefault(HAL_GetNumEncoders(), HALSIM_RegisterEncoderAllCallbacks);
+void HALSimWSProviderEncoder::Initialize(std::weak_ptr<HALSimWeb> web,
+                                         WSRegisterFunc webRegisterFunc) {
+  CreateProviders<HALSimWSProviderEncoder>("Encoder", HAL_GetNumEncoders(),
+                                           HALSIM_RegisterEncoderAllCallbacks,
+                                           web, webRegisterFunc);
 }
 
-wpi::json HALSimWSProviderEncoder::OnSimValueChanged(uint32_t chan) {
+wpi::json HALSimWSProviderEncoder::OnSimValueChanged() {
   return {
-      {"<init", (bool)HALSIM_GetEncoderInitialized(chan)},
-      {">count", HALSIM_GetEncoderCount(chan)},
-      {">period", HALSIM_GetEncoderPeriod(chan)},
-      {"<reset", (bool)HALSIM_GetEncoderReset(chan)},
-      {"<max_period", HALSIM_GetEncoderMaxPeriod(chan)},
-      {"<reverse_direction", (bool)HALSIM_GetEncoderReverseDirection(chan)},
-      {"<samples_to_avg", HALSIM_GetEncoderSamplesToAverage(chan)},
+      {"<init", (bool)HALSIM_GetEncoderInitialized(m_channel)},
+      {">count", HALSIM_GetEncoderCount(m_channel)},
+      {">period", HALSIM_GetEncoderPeriod(m_channel)},
+      {"<reset", (bool)HALSIM_GetEncoderReset(m_channel)},
+      {"<max_period", HALSIM_GetEncoderMaxPeriod(m_channel)},
+      {"<reverse_direction",
+       (bool)HALSIM_GetEncoderReverseDirection(m_channel)},
+      {"<samples_to_avg", HALSIM_GetEncoderSamplesToAverage(m_channel)},
   };
 }
 
-void HALSimWSProviderEncoder::OnNetValueChanged(const CallbackInfo& info,
-                                                const wpi::json& json) {
+void HALSimWSProviderEncoder::OnNetValueChanged(const wpi::json& json) {
   wpi::json::const_iterator it;
   if ((it = json.find(">count")) != json.end()) {
-    HALSIM_SetEncoderCount(info.channel, it.value());
+    HALSIM_SetEncoderCount(m_channel, it.value());
   }
   if ((it = json.find(">period")) != json.end()) {
-    HALSIM_SetEncoderPeriod(info.channel, it.value());
+    HALSIM_SetEncoderPeriod(m_channel, it.value());
   }
 }

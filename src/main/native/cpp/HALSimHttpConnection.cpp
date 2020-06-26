@@ -34,7 +34,10 @@ void HALSimHttpConnection::ProcessWsUpgrade() {
   m_websocket->open.connect_extended([this](auto conn, wpi::StringRef) {
     conn.disconnect();  // one-shot
 
-    if (!m_hws->RegisterWebsocket(shared_from_this())) {
+    auto this_ptr =
+        std::static_pointer_cast<HALSimHttpConnection>(shared_from_this());
+
+    if (!m_hws->RegisterWebsocket(this_ptr)) {
       m_websocket->Fail(409, "Only a single simulation websocket is allowed");
       return;
     }
@@ -59,13 +62,22 @@ void HALSimHttpConnection::ProcessWsUpgrade() {
     m_hws->OnNetValueChanged(j);
   });
 
-  m_websocket->closed([this](uint16_t, wpi::StringRef) {
+  m_websocket->closed.connect([this](uint16_t, wpi::StringRef) {
     // unset the global, allow another websocket to connect
     m_isWsConnected = false;
   });
 }
 
-void HALSimHttpConnection::OnSimValueChanged(const wpi::json& msg) {}
+void HALSimHttpConnection::OnSimValueChanged(
+    wpi::ArrayRef<wpi::uv::Buffer> data, ReleaseFunc release) {
+  m_websocket->SendText(data, [release](auto bufs, wpi::uv::Error err) {
+    release(bufs);
+    if (err) {
+      wpi::errs() << err.str() << "\n";
+      wpi::errs().flush();
+    }
+  });
+}
 
 class SendfileReq : public uv::RequestImpl<SendfileReq, uv_fs_t> {
  public:
@@ -192,14 +204,14 @@ void HALSimHttpConnection::ProcessRequest() {
 
   if (m_request.GetMethod() == wpi::HTTP_GET && path.startswith("/") &&
       !path.contains("..")) {
-    if (path.endswith("/")) {
-      path.
-    }
+    // if (path.endswith("/")) {
+    //   path.
+    // }
 
     // convert to fs native representation
 
     // does it exist? ok, pass to underlying
-    wpi::sys::fs::exists();
+    // wpi::sys::fs::exists();
 
     auto contentType = MimeTypeFromPath(path);
 

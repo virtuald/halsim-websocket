@@ -19,15 +19,9 @@
 #include "WSProvider_RoboRIO.h"
 #include "WSProvider_dPWM.h"
 
-static HALSimWSProviderPWM pwm_provider;
-static HALSimWSProviderDigitalPWM dpwm_provider;
-static HALSimWSProviderDIO dio_provider;
-static HALSimWSProviderAnalogIn ai_provider;
-static HALSimWSProviderAnalogOut ao_provider;
-static HALSimWSProviderDriverStation ds_provider;
-static HALSimWSProviderEncoder encoder_provider;
-static HALSimWSProviderRelay relay_provider;
-static HALSimWSProviderRoboRIO roborio_provider;
+// Currently, robots never terminate, so we keep static objects that are
+// never properly released or cleaned up.
+static wpi::StringMap<std::unique_ptr<HALSimWSBaseProvider>> providers;
 
 extern "C" {
 #if defined(WIN32) || defined(_WIN32)
@@ -35,24 +29,27 @@ __declspec(dllexport)
 #endif
     int HALSIM_InitExtension(void) {
   std::cout << "Websocket Simulator Initializing." << std::endl;
-  auto hsw = std::make_shared<HALSimWeb>();
+  auto hsw = std::make_shared<HALSimWeb>(providers);
   if (!hsw->Initialize()) {
     return -1;
   }
 
-  pwm_provider.Inject(hsw, "PWM");
-  dpwm_provider.Inject(hsw, "dPWM");
-  dio_provider.Inject(hsw, "DIO");
-  ai_provider.Inject(hsw, "AI");
-  ao_provider.Inject(hsw, "AO");
-  ds_provider.Inject(hsw, "DriverStation");
-  encoder_provider.Inject(hsw, "Encoder");
-  relay_provider.Inject(hsw, "Relay");
-  roborio_provider.Inject(hsw, "RoboRIO");
+  auto registerFunc = [](const std::string& key,
+                         std::unique_ptr<HALSimWSBaseProvider> provider) {
+    providers[key] = std::move(provider);
+  };
 
-  auto hack = new std::shared_ptr<HALSimWeb>();
-  hack->swap(hsw);
+  HALSimWSProviderAnalogIn::Initialize(hsw, registerFunc);
+  HALSimWSProviderAnalogOut::Initialize(hsw, registerFunc);
+  HALSimWSProviderDIO::Initialize(hsw, registerFunc);
+  HALSimWSProviderDigitalPWM::Initialize(hsw, registerFunc);
+  HALSimWSProviderDriverStation::Initialize(hsw, registerFunc);
+  HALSimWSProviderEncoder::Initialize(hsw, registerFunc);
+  HALSimWSProviderPWM::Initialize(hsw, registerFunc);
+  HALSimWSProviderRelay::Initialize(hsw, registerFunc);
+  HALSimWSProviderRoboRIO::Initialize(hsw, registerFunc);
 
+  auto hack = new std::shared_ptr<HALSimWeb>(hsw);
   HAL_SetMain(hack, HALSimWeb::Main, HALSimWeb::Exit);
 
   std::cout << "Websocket Simulator Initialized!" << std::endl;

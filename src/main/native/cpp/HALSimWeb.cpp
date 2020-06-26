@@ -7,9 +7,8 @@
 
 #include "HALSimWeb.h"
 #include "HALSimHttpConnection.h"
-#include "WSProvider.h"
 
-#include <wpi/raw_ostream.h>
+#include <wpi/raw_uv_ostream.h>
 #include <wpi/Twine.h>
 #include <wpi/UrlParser.h>
 #include <wpi/WebSocketServer.h>
@@ -17,12 +16,6 @@
 #include <wpi/uv/Tcp.h>
 
 namespace uv = wpi::uv;
-
-// TODO: not thread safe?
-static SimpleBufferPool<4>& GetBufferPool() {
-  static SimpleBufferPool<4> bufferPool;
-  return bufferPool;
-}
 
 bool HALSimWeb::Initialize() {
   // XXX: determine user/system web folders to retrieve static
@@ -41,6 +34,7 @@ bool HALSimWeb::Initialize() {
     return false;
   }
 
+  // TODO: configurable port
   m_server->Bind("", 8080);
   return true;
 }
@@ -82,22 +76,42 @@ void HALSimWeb::Exit(void* param) {
   });
 }
 
-void HALSimWeb::RegisterProvider(HALSimWSProvider::CallbackInfo* cb) {
-  m_providers[cb->key] = cb;
+bool HALSimWeb::RegisterWebsocket(std::shared_ptr<HALSimHttpConnection> hws) {
+  if (m_hws.lock()) {
+    return false;
+  }
+  m_hws = hws;
+  return true;
 }
 
-void HALSimWeb::OnSimValueChanged(const wpi::json& msg) {
-  if (auto exec = m_exec.lock()) {
-    // ... uh, maybe move the msg into the lambda
-    exec->Call([this]() {
-      if (auto hws = m_hws.lock()) {
-        // TODO: serialize to buffer, buffer needs to hang out
-        // until message is sent; can't pass the JSON through
-        // here unfortunately
-        hws->OnSimValueChanged(msg);
+void HALSimWeb::CloseWebsocket(std::shared_ptr<HALSimHttpConnection> hws) {
+  if (hws == m_hws.lock()) {
+    m_hws.reset();
+  }
+}
 
-        // they usually need a callback to Dealloc() each buffer,
-        // whatever that seems to mean
+void HALSimWeb::SendUpdateToNet(const wpi::json& msg) {
+  // note: function called from arbitrary threads
+
+  if (auto exec = m_exec.lock()) {
+    // render json to buffers
+    wpi::SmallVector<uv::Buffer, 4> sendBufs;
+    wpi::raw_uv_ostream os{sendBufs, [this]() -> uv::Buffer {
+                             std::lock_guard lock(m_buffers_mutex);
+                             return m_buffers.Allocate();
+                           }};
+    os << msg;
+
+    // call the websocket send function on the uv loop
+    exec->Call([this, sendBufs]() mutable {
+      if (auto hws = m_hws.lock()) {
+        hws->OnSimValueChanged(sendBufs, [this](auto bufs) {
+          std::lock_guard lock(m_buffers_mutex);
+          m_buffers.Release(bufs);
+        });
+      } else {
+        std::lock_guard lock(m_buffers_mutex);
+        m_buffers.Release(sendBufs);
       }
     });
   }
@@ -106,8 +120,9 @@ void HALSimWeb::OnSimValueChanged(const wpi::json& msg) {
 void HALSimWeb::OnNetValueChanged(const wpi::json& msg) {
   // TODO: error handling for bad keys
   for (auto iter = msg.cbegin(); iter != msg.cend(); ++iter) {
-    if (auto info = m_providers.lookup(iter.key())) {
-      info->provider->OnNetValueChanged(*info, iter.value());
+    auto fiter = m_providers.find(iter.key());
+    if (fiter != m_providers.end()) {
+      fiter->second->OnNetValueChanged(iter.value());
     }
   }
 }
