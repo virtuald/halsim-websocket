@@ -28,6 +28,11 @@ class HALSimWeb {
   using UvExecFunc = wpi::uv::AsyncFunction<void(LoopFunc)>;
   using ProviderList = wpi::StringMap<std::unique_ptr<HALSimWSBaseProvider>>;
 
+  static std::shared_ptr<HALSimWeb> GetInstance() { return g_instance; }
+  static void SetInstance(std::shared_ptr<HALSimWeb> inst) {
+    g_instance = inst;
+  }
+
   HALSimWeb(ProviderList& providers) : m_providers(providers) {}
 
   bool Initialize();
@@ -47,6 +52,8 @@ class HALSimWeb {
   std::string SystemWebRoot;
 
  private:
+  static std::shared_ptr<HALSimWeb> g_instance;
+
   void MainLoop();
 
   // connected http connection that contains active websocket

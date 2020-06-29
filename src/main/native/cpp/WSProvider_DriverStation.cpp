@@ -13,10 +13,9 @@
 #include <hal/Ports.h>
 #include <mockdata/DriverStationData.h>
 
-void HALSimWSProviderDriverStation::Initialize(std::weak_ptr<HALSimWeb> web,
-                                               WSRegisterFunc webRegisterFunc) {
+void HALSimWSProviderDriverStation::Initialize(WSRegisterFunc webRegisterFunc) {
   CreateSingleProvider<HALSimWSProviderDriverStation>(
-      "DriverStation", HALSIM_RegisterDriverStationAllCallbacks, web,
+      "DriverStation", HALSIM_RegisterDriverStationAllCallbacks,
       webRegisterFunc);
 }
 

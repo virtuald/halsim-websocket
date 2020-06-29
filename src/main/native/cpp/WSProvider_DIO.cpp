@@ -10,10 +10,9 @@
 #include <hal/Ports.h>
 #include <mockdata/DIOData.h>
 
-void HALSimWSProviderDIO::Initialize(std::weak_ptr<HALSimWeb> web,
-                                     WSRegisterFunc webRegisterFunc) {
+void HALSimWSProviderDIO::Initialize(WSRegisterFunc webRegisterFunc) {
   CreateProviders<HALSimWSProviderDIO>("DIO", HAL_GetNumDigitalChannels(),
-                                       HALSIM_RegisterDIOAllCallbacks, web,
+                                       HALSIM_RegisterDIOAllCallbacks,
                                        webRegisterFunc);
 }
 

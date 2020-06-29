@@ -46,8 +46,7 @@ class HALSimWSHalProvider : public HALSimWSBaseProvider {
 // provider generates per-channel diffs
 class HALSimWSHalChanProvider : public HALSimWSHalProvider {
  public:
-  explicit HALSimWSHalChanProvider(int32_t channel, const std::string& key,
-                                   std::weak_ptr<HALSimWeb> web);
+  explicit HALSimWSHalChanProvider(int32_t channel, const std::string& key);
 
  protected:
   int32_t m_channel;
@@ -56,13 +55,11 @@ class HALSimWSHalChanProvider : public HALSimWSHalProvider {
 template <typename T>
 void CreateProviders(const std::string& prefix, int32_t numChannels,
                      HALCbRegisterIndexedFunc halRegisterFunc,
-                     std::weak_ptr<HALSimWeb> web,
                      WSRegisterFunc webRegisterFunc);
 
 template <typename T>
 void CreateSingleProvider(const std::string& key,
                           HALCbRegisterSingleFunc halRegisterFunc,
-                          std::weak_ptr<HALSimWeb> web,
                           WSRegisterFunc webRegisterFunc);
 
 #include "WSHalProviders.inl"

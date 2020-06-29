@@ -16,8 +16,7 @@ class HALSimWeb;
 
 class HALSimWSBaseProvider {
  public:
-  explicit HALSimWSBaseProvider(const std::string& key,
-                                std::weak_ptr<HALSimWeb> web);
+  explicit HALSimWSBaseProvider(const std::string& key);
   virtual ~HALSimWSBaseProvider() {}
 
   // network -> sim
@@ -29,5 +28,4 @@ class HALSimWSBaseProvider {
 
  private:
   std::string m_key;
-  std::weak_ptr<HALSimWeb> m_web;
 };

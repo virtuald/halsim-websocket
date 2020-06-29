@@ -13,8 +13,7 @@
 
 class HALSimWSProviderDriverStation : public HALSimWSHalProvider {
  public:
-  static void Initialize(std::weak_ptr<HALSimWeb> web,
-                         WSRegisterFunc webRegisterFunc);
+  static void Initialize(WSRegisterFunc webRegisterFunc);
 
   using HALSimWSHalProvider::HALSimWSHalProvider;
 

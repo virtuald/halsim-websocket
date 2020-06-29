@@ -36,8 +36,12 @@ void HALSimHttpConnection::ProcessWsUpgrade() {
 
     auto this_ptr =
         std::static_pointer_cast<HALSimHttpConnection>(shared_from_this());
-
-    if (!m_hws->RegisterWebsocket(this_ptr)) {
+    auto hws = HALSimWeb::GetInstance();
+    if (!hws) {
+      m_websocket->Fail(503, "HALSimWeb unavailable");
+      return;
+    }
+    if (!hws->RegisterWebsocket(this_ptr)) {
       m_websocket->Fail(409, "Only a single simulation websocket is allowed");
       return;
     }
@@ -47,9 +51,11 @@ void HALSimHttpConnection::ProcessWsUpgrade() {
 
   // parse incoming JSON, dispatch to parent
   m_websocket->text.connect([this](wpi::StringRef msg, bool) {
-    if (!m_isWsConnected) {
+    auto hws = HALSimWeb::GetInstance();
+    if (!m_isWsConnected || !hws) {
       return;
     }
+
     wpi::json j;
     try {
       j = wpi::json::parse(msg);
@@ -59,12 +65,22 @@ void HALSimHttpConnection::ProcessWsUpgrade() {
       m_websocket->Fail(400, err);
       return;
     }
-    m_hws->OnNetValueChanged(j);
+    hws->OnNetValueChanged(j);
   });
 
   m_websocket->closed.connect([this](uint16_t, wpi::StringRef) {
     // unset the global, allow another websocket to connect
-    m_isWsConnected = false;
+    if (m_isWsConnected) {
+      wpi::errs() << "websocket disconnected\n";
+      m_isWsConnected = false;
+
+      auto this_ptr =
+          std::static_pointer_cast<HALSimHttpConnection>(shared_from_this());
+      auto hws = HALSimWeb::GetInstance();
+      if (hws) {
+        hws->CloseWebsocket(this_ptr);
+      }
+    }
   });
 }
 

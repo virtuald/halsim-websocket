@@ -56,6 +56,5 @@ void HALSimWSHalProvider::OnSimCallback(const char* name, void* param,
 }
 
 HALSimWSHalChanProvider::HALSimWSHalChanProvider(int32_t channel,
-                                                 const std::string& key,
-                                                 std::weak_ptr<HALSimWeb> web)
-    : HALSimWSHalProvider(key, web), m_channel(channel) {}
+                                                 const std::string& key)
+    : HALSimWSHalProvider(key), m_channel(channel) {}

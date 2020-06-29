@@ -11,11 +11,10 @@
 #include <mockdata/AnalogInData.h>
 #include <mockdata/AnalogOutData.h>
 
-void HALSimWSProviderAnalogIn::Initialize(std::weak_ptr<HALSimWeb> web,
-                                          WSRegisterFunc webRegisterFunc) {
+void HALSimWSProviderAnalogIn::Initialize(WSRegisterFunc webRegisterFunc) {
   CreateProviders<HALSimWSProviderAnalogIn>("AI", HAL_GetNumAnalogInputs(),
                                             HALSIM_RegisterAnalogInAllCallbacks,
-                                            web, webRegisterFunc);
+                                            webRegisterFunc);
 }
 
 wpi::json HALSimWSProviderAnalogIn::OnSimValueChanged() {
@@ -54,11 +53,10 @@ void HALSimWSProviderAnalogIn::OnNetValueChanged(const wpi::json& json) {
   }
 }
 
-void HALSimWSProviderAnalogOut::Initialize(std::weak_ptr<HALSimWeb> web,
-                                           WSRegisterFunc webRegisterFunc) {
+void HALSimWSProviderAnalogOut::Initialize(WSRegisterFunc webRegisterFunc) {
   CreateProviders<HALSimWSProviderAnalogOut>(
       "AO", HAL_GetNumAnalogOutputs(), HALSIM_RegisterAnalogOutAllCallbacks,
-      web, webRegisterFunc);
+      webRegisterFunc);
 }
 
 wpi::json HALSimWSProviderAnalogOut::OnSimValueChanged() {

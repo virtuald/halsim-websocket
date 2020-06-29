@@ -10,10 +10,9 @@
 #include <hal/Ports.h>
 #include <mockdata/PWMData.h>
 
-void HALSimWSProviderPWM::Initialize(std::weak_ptr<HALSimWeb> web,
-                                     WSRegisterFunc webRegisterFunc) {
+void HALSimWSProviderPWM::Initialize(WSRegisterFunc webRegisterFunc) {
   CreateProviders<HALSimWSProviderPWM>("PWM", HAL_GetNumPWMChannels(),
-                                       HALSIM_RegisterPWMAllCallbacks, web,
+                                       HALSIM_RegisterPWMAllCallbacks,
                                        webRegisterFunc);
 }
 

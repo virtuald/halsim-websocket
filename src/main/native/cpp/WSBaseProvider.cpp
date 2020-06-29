@@ -8,12 +8,11 @@
 #include "WSBaseProvider.h"
 #include "HALSimWeb.h"
 
-HALSimWSBaseProvider::HALSimWSBaseProvider(const std::string& key,
-                                           std::weak_ptr<HALSimWeb> web)
-    : m_key(key), m_web(web) {}
+HALSimWSBaseProvider::HALSimWSBaseProvider(const std::string& key)
+    : m_key(key) {}
 
 void HALSimWSBaseProvider::SendUpdateToNet(const wpi::json& update) {
-  auto web = m_web.lock();
+  auto web = HALSimWeb::GetInstance();
   if (web) {
     wpi::json netValue = {
         {m_key, update},

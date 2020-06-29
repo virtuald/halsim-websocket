@@ -10,11 +10,10 @@
 #include <hal/Ports.h>
 #include <mockdata/EncoderData.h>
 
-void HALSimWSProviderEncoder::Initialize(std::weak_ptr<HALSimWeb> web,
-                                         WSRegisterFunc webRegisterFunc) {
+void HALSimWSProviderEncoder::Initialize(WSRegisterFunc webRegisterFunc) {
   CreateProviders<HALSimWSProviderEncoder>("Encoder", HAL_GetNumEncoders(),
                                            HALSIM_RegisterEncoderAllCallbacks,
-                                           web, webRegisterFunc);
+                                           webRegisterFunc);
 }
 
 wpi::json HALSimWSProviderEncoder::OnSimValueChanged() {

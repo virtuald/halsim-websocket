@@ -17,6 +17,8 @@
 
 namespace uv = wpi::uv;
 
+std::shared_ptr<HALSimWeb> HALSimWeb::g_instance;
+
 bool HALSimWeb::Initialize() {
   // XXX: determine user/system web folders to retrieve static
   //      content from
@@ -40,9 +42,8 @@ bool HALSimWeb::Initialize() {
 }
 
 void HALSimWeb::Main(void* param) {
-  auto hack = (std::shared_ptr<HALSimWeb>*)param;
-  (*hack)->MainLoop();
-  delete hack;
+  GetInstance()->MainLoop();
+  SetInstance(nullptr);
 }
 
 void HALSimWeb::MainLoop() {
@@ -56,7 +57,7 @@ void HALSimWeb::MainLoop() {
     auto tcp = srv->Accept();
     if (!tcp) return;
     wpi::errs() << "Got a connection\n";
-    auto conn = std::make_shared<HALSimHttpConnection>(this, tcp);
+    auto conn = std::make_shared<HALSimHttpConnection>(tcp);
     tcp->SetData(conn);
   });
 
@@ -68,8 +69,9 @@ void HALSimWeb::MainLoop() {
 }
 
 void HALSimWeb::Exit(void* param) {
-  auto hack = (std::shared_ptr<HALSimWeb>*)param;
-  auto loop = (*hack)->m_loop;
+  auto inst = GetInstance();
+  if (!inst) return;
+  auto loop = inst->m_loop;
   loop->Walk([](uv::Handle& h) {
     h.SetLoopClosing(true);
     h.Close();

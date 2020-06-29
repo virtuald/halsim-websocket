@@ -10,10 +10,9 @@
 #include <hal/Ports.h>
 #include <mockdata/RoboRioData.h>
 
-void HALSimWSProviderRoboRIO::Initialize(std::weak_ptr<HALSimWeb> web,
-                                         WSRegisterFunc webRegisterFunc) {
+void HALSimWSProviderRoboRIO::Initialize(WSRegisterFunc webRegisterFunc) {
   CreateProviders<HALSimWSProviderRoboRIO>(
-      "RoboRIO", 1, HALSIM_RegisterRoboRioAllCallbacks, web, webRegisterFunc);
+      "RoboRIO", 1, HALSIM_RegisterRoboRioAllCallbacks, webRegisterFunc);
 }
 
 wpi::json HALSimWSProviderRoboRIO::OnSimValueChanged() {

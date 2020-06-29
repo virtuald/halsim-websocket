@@ -30,6 +30,8 @@ __declspec(dllexport)
     int HALSIM_InitExtension(void) {
   std::cout << "Websocket Simulator Initializing." << std::endl;
   auto hsw = std::make_shared<HALSimWeb>(providers);
+  HALSimWeb::SetInstance(hsw);
+
   if (!hsw->Initialize()) {
     return -1;
   }
@@ -39,18 +41,17 @@ __declspec(dllexport)
     providers[key] = std::move(provider);
   };
 
-  HALSimWSProviderAnalogIn::Initialize(hsw, registerFunc);
-  HALSimWSProviderAnalogOut::Initialize(hsw, registerFunc);
-  HALSimWSProviderDIO::Initialize(hsw, registerFunc);
-  HALSimWSProviderDigitalPWM::Initialize(hsw, registerFunc);
-  HALSimWSProviderDriverStation::Initialize(hsw, registerFunc);
-  HALSimWSProviderEncoder::Initialize(hsw, registerFunc);
-  HALSimWSProviderPWM::Initialize(hsw, registerFunc);
-  HALSimWSProviderRelay::Initialize(hsw, registerFunc);
-  HALSimWSProviderRoboRIO::Initialize(hsw, registerFunc);
+  HALSimWSProviderAnalogIn::Initialize(registerFunc);
+  HALSimWSProviderAnalogOut::Initialize(registerFunc);
+  HALSimWSProviderDIO::Initialize(registerFunc);
+  HALSimWSProviderDigitalPWM::Initialize(registerFunc);
+  HALSimWSProviderDriverStation::Initialize(registerFunc);
+  HALSimWSProviderEncoder::Initialize(registerFunc);
+  HALSimWSProviderPWM::Initialize(registerFunc);
+  HALSimWSProviderRelay::Initialize(registerFunc);
+  HALSimWSProviderRoboRIO::Initialize(registerFunc);
 
-  auto hack = new std::shared_ptr<HALSimWeb>(hsw);
-  HAL_SetMain(hack, HALSimWeb::Main, HALSimWeb::Exit);
+  HAL_SetMain(nullptr, HALSimWeb::Main, HALSimWeb::Exit);
 
   std::cout << "Websocket Simulator Initialized!" << std::endl;
   return 0;

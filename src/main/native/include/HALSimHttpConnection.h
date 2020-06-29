@@ -25,9 +25,8 @@ class HALSimHttpConnection : public wpi::WebSocketServerConnection {
   using ReleaseFunc =
       std::function<void(wpi::MutableArrayRef<wpi::uv::Buffer>)>;
 
-  explicit HALSimHttpConnection(HALSimWeb* hws,
-                                std::shared_ptr<wpi::uv::Stream> stream)
-      : wpi::WebSocketServerConnection(stream, {}), m_hws(hws) {}
+  explicit HALSimHttpConnection(std::shared_ptr<wpi::uv::Stream> stream)
+      : wpi::WebSocketServerConnection(stream, {}) {}
 
  public:
   void OnSimValueChanged(wpi::ArrayRef<wpi::uv::Buffer> data,
@@ -42,6 +41,5 @@ class HALSimHttpConnection : public wpi::WebSocketServerConnection {
                         const wpi::Twine& filename,
                         const wpi::Twine& extraHeader = wpi::Twine{});
 
-  HALSimWeb* m_hws;
   bool m_isWsConnected = false;
 };

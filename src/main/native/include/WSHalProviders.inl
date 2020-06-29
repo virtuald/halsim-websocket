@@ -10,11 +10,10 @@
 template <typename T>
 void CreateProviders(const std::string& prefix, int numChannels,
                      HALCbRegisterIndexedFunc halRegisterFunc,
-                     std::weak_ptr<HALSimWeb> web,
                      WSRegisterFunc webRegisterFunc) {
   for (int32_t i = 0; i < numChannels; i++) {
     auto key = (prefix + "/" + wpi::Twine(i)).str();
-    auto ptr = std::make_unique<T>(i, key, web);
+    auto ptr = std::make_unique<T>(i, key);
     halRegisterFunc(i, HALSimWSHalProvider::OnSimCallback, ptr.get(), true);
     webRegisterFunc(key, std::move(ptr));
   }
@@ -23,9 +22,8 @@ void CreateProviders(const std::string& prefix, int numChannels,
 template <typename T>
 void CreateSingleProvider(const std::string& key,
                           HALCbRegisterSingleFunc halRegisterFunc,
-                          std::weak_ptr<HALSimWeb> web,
                           WSRegisterFunc webRegisterFunc) {
-  auto ptr = std::make_unique<T>(key, web);
+  auto ptr = std::make_unique<T>(key);
   halRegisterFunc(HALSimWSHalProvider::OnSimCallback, ptr.get(), true);
   webRegisterFunc(key, std::move(ptr));
 }

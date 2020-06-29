@@ -10,10 +10,9 @@
 #include <hal/Ports.h>
 #include <mockdata/RelayData.h>
 
-void HALSimWSProviderRelay::Initialize(std::weak_ptr<HALSimWeb> web,
-                                       WSRegisterFunc webRegisterFunc) {
+void HALSimWSProviderRelay::Initialize(WSRegisterFunc webRegisterFunc) {
   CreateProviders<HALSimWSProviderRelay>("Relay", HAL_GetNumRelayHeaders(),
-                                         HALSIM_RegisterRelayAllCallbacks, web,
+                                         HALSIM_RegisterRelayAllCallbacks,
                                          webRegisterFunc);
 }
 
