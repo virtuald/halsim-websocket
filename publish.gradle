@@ -40,14 +40,13 @@ ext.addTaskToCopyAllOutputs = { task ->
     copyAllOutputs.from task.archivePath
 }
 
-def artifactGroupId = 'com.vendor.frc'
-def baseArtifactId = 'Vendor'
-def driverZipBaseName = "_GROUP_com_vendor_frc_ID_${baseArtifactId}-driver_CLS"
-def zipBaseName = "_GROUP_com_vendor_frc_ID_${baseArtifactId}-cpp_CLS"
+def artifactGroupId = 'edu.wpi.first.halsim'
+def baseArtifactId = 'halsim_websocket'
+def zipBaseName = "_GROUP_edu_wpi_first_halsim_ID_${baseArtifactId}-cpp_CLS"
 
 task cppHeadersZip(type: Zip) {
-    destinationDir = outputsFolder
-    baseName = zipBaseName
+    destinationDirectory = outputsFolder
+    archiveBaseName = zipBaseName
     classifier = "headers"
 
     from(licenseFile) {
@@ -60,8 +59,8 @@ task cppHeadersZip(type: Zip) {
 }
 
 task cppSourceZip(type: Zip) {
-    destinationDir = outputsFolder
-    baseName = zipBaseName
+    destinationDirectory = outputsFolder
+    archiveBaseName = zipBaseName
     classifier = "source"
 
     from(licenseFile) {
@@ -72,7 +71,6 @@ task cppSourceZip(type: Zip) {
         into '/'
     }
 }
-
 
 build.dependsOn cppHeadersZip
 addTaskToCopyAllOutputs(cppHeadersZip)
@@ -85,10 +83,11 @@ def releasesRepoUrl = "$buildDir/repos/releases"
 
 publishing {
     repositories {
-        maven {
+        mavenLocal()
+        // maven {
 
-            url = releasesRepoUrl
-        }
+        //     url = releasesRepoUrl
+        // }
     }
 }
 
@@ -100,10 +99,8 @@ tasks.matching {it != cleanReleaseRepo}.all {it.dependsOn cleanReleaseRepo}
 
 model {
     publishing {
-        def taskList = createComponentZipTasks($.components, ['Vendor'], zipBaseName, Zip, project, includeStandardZipFormat)
-
-        def driverTaskList = createComponentZipTasks($.components, ['Vendor'], driverZipBaseName, Zip, project, includeStandardZipFormat)
-
+        def taskList = createComponentZipTasks($.components, [baseArtifactId], zipBaseName, Zip, project, includeStandardZipFormat)
+        
         publications {
             cpp(MavenPublication) {
                 taskList.each {
