@@ -84,7 +84,7 @@ void HALSimWeb::MainLoop() {
 
   // start listening for incoming connections
   m_server->Listen();
-  wpi::errs() << "Listening on port 8080\n";
+  wpi::errs() << "Listening at http://localhost:8080\n";
 
   m_loop->Run();
 }
