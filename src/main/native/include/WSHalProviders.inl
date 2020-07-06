@@ -14,7 +14,8 @@ void CreateProviders(const std::string& prefix, int numChannels,
   for (int32_t i = 0; i < numChannels; i++) {
     auto key = (prefix + "/" + wpi::Twine(i)).str();
     auto ptr = std::make_unique<T>(i, key);
-    halRegisterFunc(i, HALSimWSHalProvider::OnSimCallback, ptr.get(), true);
+    halRegisterFunc(i, HALSimWSHalProvider::OnStaticSimCallback, ptr.get(),
+                    true);
     webRegisterFunc(key, std::move(ptr));
   }
 }
@@ -24,6 +25,6 @@ void CreateSingleProvider(const std::string& key,
                           HALCbRegisterSingleFunc halRegisterFunc,
                           WSRegisterFunc webRegisterFunc) {
   auto ptr = std::make_unique<T>(key);
-  halRegisterFunc(HALSimWSHalProvider::OnSimCallback, ptr.get(), true);
+  halRegisterFunc(HALSimWSHalProvider::OnStaticSimCallback, ptr.get(), true);
   webRegisterFunc(key, std::move(ptr));
 }

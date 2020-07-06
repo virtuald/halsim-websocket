@@ -13,6 +13,7 @@
 #include <uv.h>
 
 #include <wpi/FileSystem.h>
+#include <wpi/Path.h>
 #include <wpi/SmallVector.h>
 #include <wpi/UrlParser.h>
 #include <wpi/raw_ostream.h>
@@ -23,7 +24,7 @@ namespace uv = wpi::uv;
 
 bool HALSimHttpConnection::IsValidWsUpgrade(wpi::StringRef protocol) {
   if (m_request.GetUrl() != "/ws") {
-    SendError(404);
+    MySendError(404, "invalid websocket address");
     return false;
   }
 
@@ -34,19 +35,31 @@ void HALSimHttpConnection::ProcessWsUpgrade() {
   m_websocket->open.connect_extended([this](auto conn, wpi::StringRef) {
     conn.disconnect();  // one-shot
 
-    auto this_ptr =
-        std::static_pointer_cast<HALSimHttpConnection>(shared_from_this());
+    m_buffers = std::make_unique<BufferPool>();
+    m_exec =
+        UvExecFunc::Create(m_stream.GetLoop(), [](auto out, LoopFunc func) {
+          func();
+          out.set_value();
+        });
+
     auto hws = HALSimWeb::GetInstance();
     if (!hws) {
+      Log(503);
       m_websocket->Fail(503, "HALSimWeb unavailable");
       return;
     }
+
+    auto this_ptr =
+        std::static_pointer_cast<HALSimHttpConnection>(shared_from_this());
     if (!hws->RegisterWebsocket(this_ptr)) {
+      Log(409);
       m_websocket->Fail(409, "Only a single simulation websocket is allowed");
       return;
     }
+
+    Log(200);
     m_isWsConnected = true;
-    wpi::errs() << "websocket connected\n";
+    wpi::errs() << "HALWebSim: websocket connected\n";
   });
 
   // parse incoming JSON, dispatch to parent
@@ -71,7 +84,7 @@ void HALSimHttpConnection::ProcessWsUpgrade() {
   m_websocket->closed.connect([this](uint16_t, wpi::StringRef) {
     // unset the global, allow another websocket to connect
     if (m_isWsConnected) {
-      wpi::errs() << "websocket disconnected\n";
+      wpi::errs() << "HALWebSim: websocket disconnected\n";
       m_isWsConnected = false;
 
       auto this_ptr =
@@ -84,14 +97,28 @@ void HALSimHttpConnection::ProcessWsUpgrade() {
   });
 }
 
-void HALSimHttpConnection::OnSimValueChanged(
-    wpi::ArrayRef<wpi::uv::Buffer> data, ReleaseFunc release) {
-  m_websocket->SendText(data, [release](auto bufs, wpi::uv::Error err) {
-    release(bufs);
-    if (err) {
-      wpi::errs() << err.str() << "\n";
-      wpi::errs().flush();
-    }
+void HALSimHttpConnection::OnSimValueChanged(const wpi::json& msg) {
+  // render json to buffers
+  wpi::SmallVector<uv::Buffer, 4> sendBufs;
+  wpi::raw_uv_ostream os{sendBufs, [this]() -> uv::Buffer {
+                           std::lock_guard lock(m_buffers_mutex);
+                           return m_buffers->Allocate();
+                         }};
+  os << msg;
+
+  // call the websocket send function on the uv loop
+  m_exec->Call([this, sendBufs]() mutable {
+    m_websocket->SendText(sendBufs, [this](auto bufs, wpi::uv::Error err) {
+      {
+        std::lock_guard lock(m_buffers_mutex);
+        m_buffers->Release(bufs);
+      }
+
+      if (err) {
+        wpi::errs() << err.str() << "\n";
+        wpi::errs().flush();
+      }
+    });
   });
 }
 
@@ -161,14 +188,14 @@ void HALSimHttpConnection::SendFileResponse(int code,
   // open file
   int infd;
   if (wpi::sys::fs::openFileForRead(filename, infd)) {
-    SendError(404);
+    MySendError(404, "error opening file");
     return;
   }
 
   // get status (to get file size)
   wpi::sys::fs::file_status status;
   if (wpi::sys::fs::status(infd, status)) {
-    SendError(404);
+    MySendError(404, "error getting file size");
     ::close(infd);
     return;
   }
@@ -177,7 +204,7 @@ void HALSimHttpConnection::SendFileResponse(int code,
   int err = uv_fileno(m_stream.GetRawHandle(), &outfd);
   if (err < 0) {
     m_stream.GetLoopRef().ReportError(err);
-    SendError(404);
+    MySendError(404, "error getting fd");
     ::close(infd);
     return;
   }
@@ -186,6 +213,8 @@ void HALSimHttpConnection::SendFileResponse(int code,
   wpi::raw_uv_ostream os{toSend, 4096};
   BuildHeader(os, code, codeText, contentType, status.getSize(), extraHeader);
   SendData(os.bufs(), false);
+
+  Log(code);
 
   // close after write completes if we aren't keeping alive
   // since we're using sendfile, set socket to blocking
@@ -201,38 +230,57 @@ void HALSimHttpConnection::SendFileResponse(int code,
 }
 
 void HALSimHttpConnection::ProcessRequest() {
-  // wpi::errs() << "HTTP request: '" << m_request.GetUrl() << "'\n";
   wpi::UrlParser url{m_request.GetUrl(),
                      m_request.GetMethod() == wpi::HTTP_CONNECT};
   if (!url.IsValid()) {
     // failed to parse URL
-    SendError(400);
+    MySendError(400, "Invalid URL");
     return;
   }
 
   wpi::StringRef path;
   if (url.HasPath()) path = url.GetPath();
-  // wpi::errs() << "path: \"" << path << "\"\n";
-
-  wpi::StringRef query;
-  if (url.HasQuery()) query = url.GetQuery();
-  // wpi::errs() << "query: \"" << query << "\"\n";
 
   if (m_request.GetMethod() == wpi::HTTP_GET && path.startswith("/") &&
       !path.contains("..")) {
-    // if (path.endswith("/")) {
-    //   path.
-    // }
-
     // convert to fs native representation
+    wpi::SmallVector<char, 32> nativePath;
+    wpi::sys::path::native(path, nativePath, wpi::sys::path::Style::posix);
 
-    // does it exist? ok, pass to underlying
-    // wpi::sys::fs::exists();
+    if (path.startswith("/user/")) {
+      std::string prefix = (wpi::sys::path::get_separator() + "user" +
+                            wpi::sys::path::get_separator())
+                               .str();
+      wpi::sys::path::replace_path_prefix(nativePath, prefix, m_webroot_user);
+    } else {
+      wpi::sys::path::replace_path_prefix(
+          nativePath, wpi::sys::path::get_separator(), m_webroot_sys);
+    }
 
-    auto contentType = MimeTypeFromPath(path);
+    if (wpi::sys::fs::is_directory(nativePath)) {
+      wpi::sys::path::append(nativePath, "index.html");
+    }
 
-    SendFileResponse(200, "OK", contentType, path);
+    if (!wpi::sys::fs::exists(nativePath) ||
+        wpi::sys::fs::is_directory(nativePath)) {
+      MySendError(404, "Resource '" + path + "' not found");
+    } else {
+      auto contentType = MimeTypeFromPath(path);
+      SendFileResponse(200, "OK", contentType, nativePath);
+    }
   } else {
-    SendError(404, "Resource not found");
+    MySendError(404, "Resource not found");
   }
+}
+
+void HALSimHttpConnection::MySendError(int code, const wpi::Twine& message) {
+  Log(code);
+  SendError(code, message);
+}
+
+void HALSimHttpConnection::Log(int code) {
+  auto method = wpi::http_method_str(m_request.GetMethod());
+  wpi::errs() << method << " " << m_request.GetUrl() << " HTTP/"
+              << m_request.GetMajor() << "." << m_request.GetMinor() << " "
+              << code << "\n";
 }

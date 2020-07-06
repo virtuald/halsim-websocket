@@ -36,22 +36,47 @@ static void performDiff(const wpi::json& last, const wpi::json& result,
   }
 }
 
-void HALSimWSHalProvider::OnSimCallback(const char* name, void* param,
-                                        const struct HAL_Value* value) {
-  auto provider = static_cast<HALSimWSHalProvider*>(param);
-
-  // perform diff
-  wpi::json diff;
+void HALSimWSHalProvider::OnNetworkConnected(
+    std::shared_ptr<HALSimHttpConnection> ws) {
   {
-    std::lock_guard lock(provider->mutex);
-    auto result = provider->OnSimValueChanged();
-    performDiff(provider->last, result, diff);
-    provider->last = std::move(result);
+    std::lock_guard lock(mutex);
+    // previous values don't matter anymore
+    last.clear();
+    // store a weak reference to the websocket object
+    m_ws = ws;
   }
+
+  // trigger a send of the current state
+  // -> even if this gets called before, it's ok, because we cleared the
+  //    state above atomically
+  OnSimCallback();
+}
+
+void HALSimWSHalProvider::OnStaticSimCallback(const char* name, void* param,
+                                              const struct HAL_Value* value) {
+  static_cast<HALSimWSHalProvider*>(param)->OnSimCallback();
+}
+
+void HALSimWSHalProvider::OnSimCallback() {
+  wpi::json diff;
+
+  // Ensures all operations are performed in-order
+  // -> this includes the network send
+  std::lock_guard lock(mutex);
+
+  auto result = OnSimValueChanged();
+  performDiff(last, result, diff);
+  last = std::move(result);
 
   // send it out if it's not empty
   if (!diff.empty()) {
-    provider->SendUpdateToNet(diff);
+    auto ws = m_ws.lock();
+    if (ws) {
+      wpi::json netValue = {
+          {m_key, diff},
+      };
+      ws->OnSimValueChanged(netValue);
+    }
   }
 }
 

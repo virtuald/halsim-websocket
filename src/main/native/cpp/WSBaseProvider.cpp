@@ -11,16 +11,6 @@
 HALSimWSBaseProvider::HALSimWSBaseProvider(const std::string& key)
     : m_key(key) {}
 
-void HALSimWSBaseProvider::SendUpdateToNet(const wpi::json& update) {
-  auto web = HALSimWeb::GetInstance();
-  if (web) {
-    wpi::json netValue = {
-        {m_key, update},
-    };
-    web->SendUpdateToNet(netValue);
-  }
-}
-
 void HALSimWSBaseProvider::OnNetValueChanged(const wpi::json& json) {
   // empty
 }

@@ -7,10 +7,13 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 
 #include <wpi/json.h>
+
+#include "HALSimHttpConnection.h"
 
 class HALSimWeb;
 
@@ -19,13 +22,19 @@ class HALSimWSBaseProvider {
   explicit HALSimWSBaseProvider(const std::string& key);
   virtual ~HALSimWSBaseProvider() {}
 
+  HALSimWSBaseProvider(const HALSimWSBaseProvider&) = delete;
+  HALSimWSBaseProvider& operator=(const HALSimWSBaseProvider&) = delete;
+
+  // Called when the websocket connects. The provider should send
+  // initial data to the websocket and store the SendFunc to
+  // use for later sends
+  virtual void OnNetworkConnected(std::shared_ptr<HALSimHttpConnection> ws) = 0;
+
   // network -> sim
   virtual void OnNetValueChanged(const wpi::json& json);
 
  protected:
   // sim -> network
-  void SendUpdateToNet(const wpi::json& update);
-
- private:
+  std::weak_ptr<HALSimHttpConnection> m_ws;
   std::string m_key;
 };

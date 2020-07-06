@@ -14,6 +14,9 @@
 #include <mockdata/DriverStationData.h>
 
 void HALSimWSProviderDriverStation::Initialize(WSRegisterFunc webRegisterFunc) {
+  // TODO: if this isn't called, our callbacks get erased. Fixed in 2021
+  HAL_InitializeDriverStation();
+
   CreateSingleProvider<HALSimWSProviderDriverStation>(
       "DriverStation", HALSIM_RegisterDriverStationAllCallbacks,
       webRegisterFunc);
@@ -155,4 +158,6 @@ void HALSimWSProviderDriverStation::OnNetValueChanged(const wpi::json& json) {
       }
     }
   }
+
+  HALSIM_NotifyDriverStationNewData();
 }

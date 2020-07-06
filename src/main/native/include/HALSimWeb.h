@@ -18,22 +18,22 @@
 #include <wpi/uv/Loop.h>
 #include <wpi/uv/Tcp.h>
 
+#include "ProviderContainer.h"
 #include "WSBaseProvider.h"
 
 class HALSimHttpConnection;
 
 class HALSimWeb {
  public:
-  using LoopFunc = std::function<void(void)>;
-  using UvExecFunc = wpi::uv::AsyncFunction<void(LoopFunc)>;
-  using ProviderList = wpi::StringMap<std::unique_ptr<HALSimWSBaseProvider>>;
-
   static std::shared_ptr<HALSimWeb> GetInstance() { return g_instance; }
   static void SetInstance(std::shared_ptr<HALSimWeb> inst) {
     g_instance = inst;
   }
 
-  HALSimWeb(ProviderList& providers) : m_providers(providers) {}
+  HALSimWeb(ProviderContainer& providers) : m_providers(providers) {}
+
+  HALSimWeb(const HALSimWeb&) = delete;
+  HALSimWeb& operator=(const HALSimWeb&) = delete;
 
   bool Initialize();
   static void Main(void*);
@@ -42,14 +42,8 @@ class HALSimWeb {
   bool RegisterWebsocket(std::shared_ptr<HALSimHttpConnection> hws);
   void CloseWebsocket(std::shared_ptr<HALSimHttpConnection> hws);
 
-  // sim -> network
-  void SendUpdateToNet(const wpi::json& msg);
-
   // network -> sim
   void OnNetValueChanged(const wpi::json& msg);
-
-  std::string UserWebRoot;
-  std::string SystemWebRoot;
 
  private:
   static std::shared_ptr<HALSimWeb> g_instance;
@@ -60,15 +54,14 @@ class HALSimWeb {
   std::weak_ptr<HALSimHttpConnection> m_hws;
 
   // list of providers
-  ProviderList& m_providers;
+  ProviderContainer& m_providers;
 
   std::shared_ptr<wpi::uv::Loop> m_loop;
   std::shared_ptr<wpi::uv::Tcp> m_server;
 
-  // allows execution on main loop from threads
-  std::weak_ptr<UvExecFunc> m_exec;
-
-  // reusable buffers for sending data
-  wpi::uv::SimpleBufferPool<4> m_buffers;
-  wpi::mutex m_buffers_mutex;
+  // Absolute paths of folders to retrieve data from
+  // -> /
+  std::string m_webroot_sys;
+  // -> /user
+  std::string m_webroot_user;
 };

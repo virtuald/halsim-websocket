@@ -15,6 +15,7 @@
 #include <wpi/json.h>
 #include <wpi/mutex.h>
 #include <wpi/uv/Buffer.h>
+#include <wpi/uv/AsyncFunction.h>
 
 #include "WebSocketServerConnection.h"
 
@@ -22,15 +23,21 @@ class HALSimWeb;
 
 class HALSimHttpConnection : public wpi::WebSocketServerConnection {
  public:
-  using ReleaseFunc =
-      std::function<void(wpi::MutableArrayRef<wpi::uv::Buffer>)>;
+  using BufferPool = wpi::uv::SimpleBufferPool<4>;
 
-  explicit HALSimHttpConnection(std::shared_ptr<wpi::uv::Stream> stream)
-      : wpi::WebSocketServerConnection(stream, {}) {}
+  using LoopFunc = std::function<void(void)>;
+  using UvExecFunc = wpi::uv::AsyncFunction<void(LoopFunc)>;
+
+  explicit HALSimHttpConnection(std::shared_ptr<wpi::uv::Stream> stream,
+                                wpi::StringRef webroot_sys,
+                                wpi::StringRef webroot_user)
+      : wpi::WebSocketServerConnection(stream, {}),
+        m_webroot_sys(webroot_sys),
+        m_webroot_user(webroot_user) {}
 
  public:
-  void OnSimValueChanged(wpi::ArrayRef<wpi::uv::Buffer> data,
-                         ReleaseFunc release);
+  // callable from any thread
+  void OnSimValueChanged(const wpi::json& msg);
 
  protected:
   void ProcessRequest() override;
@@ -41,5 +48,21 @@ class HALSimHttpConnection : public wpi::WebSocketServerConnection {
                         const wpi::Twine& filename,
                         const wpi::Twine& extraHeader = wpi::Twine{});
 
+  void MySendError(int code, const wpi::Twine& message);
+  void Log(int code);
+
+ private:
+  // Absolute paths of folders to retrieve data from
+  // -> /
+  std::string m_webroot_sys;
+  // -> /user
+  std::string m_webroot_user;
+
+  // is the websocket connected?
   bool m_isWsConnected = false;
+
+  // these are only valid if the websocket is connected
+  std::shared_ptr<UvExecFunc> m_exec;
+  std::unique_ptr<BufferPool> m_buffers;
+  std::mutex m_buffers_mutex;
 };

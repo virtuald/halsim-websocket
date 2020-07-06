@@ -5,9 +5,8 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HALSimWeb.h"
-#include "HALSimHttpConnection.h"
-
+#include <wpi/FileSystem.h>
+#include <wpi/Path.h>
 #include <wpi/raw_uv_ostream.h>
 #include <wpi/Twine.h>
 #include <wpi/UrlParser.h>
@@ -15,14 +14,41 @@
 #include <wpi/uv/Loop.h>
 #include <wpi/uv/Tcp.h>
 
+#include "HALSimWeb.h"
+#include "HALSimHttpConnection.h"
+
 namespace uv = wpi::uv;
 
 std::shared_ptr<HALSimWeb> HALSimWeb::g_instance;
 
 bool HALSimWeb::Initialize() {
-  // XXX: determine user/system web folders to retrieve static
-  //      content from
+  // determine where to get static content from
+  wpi::SmallVector<char, 64> tmp;
 
+  const char* webroot_sys = getenv("HALSIMWEB_SYSROOT");
+  if (webroot_sys != NULL) {
+    wpi::StringRef tstr(webroot_sys);
+    tmp.append(tstr.begin(), tstr.end());
+  } else {
+    wpi::sys::fs::current_path(tmp);
+    wpi::sys::path::append(tmp, "sim");
+  }
+  wpi::sys::fs::make_absolute(tmp);
+  m_webroot_sys = wpi::Twine(tmp).str();
+
+  tmp.clear();
+  const char* webroot_user = getenv("HALSIMWEB_USERROOT");
+  if (webroot_user != NULL) {
+    wpi::StringRef tstr(webroot_user);
+    tmp.append(tstr.begin(), tstr.end());
+  } else {
+    wpi::sys::fs::current_path(tmp);
+    wpi::sys::path::append(tmp, "sim", "user");
+  }
+  wpi::sys::fs::make_absolute(tmp);
+  m_webroot_user = wpi::Twine(tmp).str();
+
+  // create libuv things
   m_loop = uv::Loop::Create();
   if (!m_loop) {
     return false;
@@ -47,17 +73,12 @@ void HALSimWeb::Main(void* param) {
 }
 
 void HALSimWeb::MainLoop() {
-  m_exec = UvExecFunc::Create(m_loop, [](auto out, LoopFunc func) {
-    func();
-    out.set_value();
-  });
-
   // when we get a connection, accept it and start reading
   m_server->connection.connect([this, srv = m_server.get()] {
     auto tcp = srv->Accept();
     if (!tcp) return;
-    wpi::errs() << "Got a connection\n";
-    auto conn = std::make_shared<HALSimHttpConnection>(tcp);
+    auto conn = std::make_shared<HALSimHttpConnection>(tcp, m_webroot_sys,
+                                                       m_webroot_user);
     tcp->SetData(conn);
   });
 
@@ -82,7 +103,14 @@ bool HALSimWeb::RegisterWebsocket(std::shared_ptr<HALSimHttpConnection> hws) {
   if (m_hws.lock()) {
     return false;
   }
+
   m_hws = hws;
+
+  // notify all providers that they should use this new websocket instead
+  m_providers.ForEach([hws](std::shared_ptr<HALSimWSBaseProvider> provider) {
+    provider->OnNetworkConnected(hws);
+  });
+
   return true;
 }
 
@@ -92,39 +120,12 @@ void HALSimWeb::CloseWebsocket(std::shared_ptr<HALSimHttpConnection> hws) {
   }
 }
 
-void HALSimWeb::SendUpdateToNet(const wpi::json& msg) {
-  // note: function called from arbitrary threads
-
-  if (auto exec = m_exec.lock()) {
-    // render json to buffers
-    wpi::SmallVector<uv::Buffer, 4> sendBufs;
-    wpi::raw_uv_ostream os{sendBufs, [this]() -> uv::Buffer {
-                             std::lock_guard lock(m_buffers_mutex);
-                             return m_buffers.Allocate();
-                           }};
-    os << msg;
-
-    // call the websocket send function on the uv loop
-    exec->Call([this, sendBufs]() mutable {
-      if (auto hws = m_hws.lock()) {
-        hws->OnSimValueChanged(sendBufs, [this](auto bufs) {
-          std::lock_guard lock(m_buffers_mutex);
-          m_buffers.Release(bufs);
-        });
-      } else {
-        std::lock_guard lock(m_buffers_mutex);
-        m_buffers.Release(sendBufs);
-      }
-    });
-  }
-}
-
 void HALSimWeb::OnNetValueChanged(const wpi::json& msg) {
   // TODO: error handling for bad keys
   for (auto iter = msg.cbegin(); iter != msg.cend(); ++iter) {
-    auto fiter = m_providers.find(iter.key());
-    if (fiter != m_providers.end()) {
-      fiter->second->OnNetValueChanged(iter.value());
+    auto provider = m_providers.Get(iter.key());
+    if (provider) {
+      provider->OnNetValueChanged(iter.value());
     }
   }
 }

@@ -23,16 +23,16 @@ typedef void (*HALCbRegisterIndexedFunc)(int32_t index,
 typedef void (*HALCbRegisterSingleFunc)(HAL_NotifyCallback callback,
                                         void* param, HAL_Bool initialNotify);
 
-using WSRegisterFunc = std::function<void(
-    const std::string&, std::unique_ptr<HALSimWSBaseProvider>)>;
-
 // provider generates diffs based on values
 class HALSimWSHalProvider : public HALSimWSBaseProvider {
  public:
   using HALSimWSBaseProvider::HALSimWSBaseProvider;
 
-  static void OnSimCallback(const char* name, void* param,
-                            const struct HAL_Value* value);
+  void OnNetworkConnected(std::shared_ptr<HALSimHttpConnection> ws);
+
+  static void OnStaticSimCallback(const char* name, void* param,
+                                  const struct HAL_Value* value);
+  void OnSimCallback();
 
   // should return json structure representing sim value
   virtual wpi::json OnSimValueChanged() = 0;
@@ -51,6 +51,9 @@ class HALSimWSHalChanProvider : public HALSimWSHalProvider {
  protected:
   int32_t m_channel;
 };
+
+using WSRegisterFunc = std::function<void(
+    const std::string&, std::shared_ptr<HALSimWSBaseProvider>)>;
 
 template <typename T>
 void CreateProviders(const std::string& prefix, int32_t numChannels,

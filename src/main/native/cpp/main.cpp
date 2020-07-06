@@ -10,6 +10,7 @@
 #include <hal/Main.h>
 
 #include "HALSimWeb.h"
+#include "ProviderContainer.h"
 #include "WSProvider_Analog.h"
 #include "WSProvider_DIO.h"
 #include "WSProvider_DriverStation.h"
@@ -19,9 +20,11 @@
 #include "WSProvider_RoboRIO.h"
 #include "WSProvider_dPWM.h"
 
+using namespace std::placeholders;
+
 // Currently, robots never terminate, so we keep static objects that are
 // never properly released or cleaned up.
-static wpi::StringMap<std::unique_ptr<HALSimWSBaseProvider>> providers;
+static ProviderContainer providers;
 
 extern "C" {
 #if defined(WIN32) || defined(_WIN32)
@@ -36,10 +39,8 @@ __declspec(dllexport)
     return -1;
   }
 
-  auto registerFunc = [](const std::string& key,
-                         std::unique_ptr<HALSimWSBaseProvider> provider) {
-    providers[key] = std::move(provider);
-  };
+  WSRegisterFunc registerFunc =
+      std::bind(&ProviderContainer::Add, &providers, _1, _2);
 
   HALSimWSProviderAnalogIn::Initialize(registerFunc);
   HALSimWSProviderAnalogOut::Initialize(registerFunc);
