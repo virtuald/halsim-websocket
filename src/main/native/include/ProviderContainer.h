@@ -24,10 +24,14 @@ class ProviderContainer {
   ProviderContainer(const ProviderContainer&) = delete;
   ProviderContainer& operator=(const ProviderContainer&) = delete;
 
-  void Add(const std::string& key,
-           std::shared_ptr<HALSimWSBaseProvider> provider) {
+  void Add(wpi::StringRef key, std::shared_ptr<HALSimWSBaseProvider> provider) {
     std::unique_lock lock(m_mutex);
     m_providers[key] = provider;
+  }
+
+  void Delete(wpi::StringRef key) {
+    std::unique_lock lock(m_mutex);
+    m_providers.erase(key);
   }
 
   void ForEach(IterFn fn) {

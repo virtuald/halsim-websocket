@@ -19,12 +19,14 @@
 #include "WSProvider_Relay.h"
 #include "WSProvider_RoboRIO.h"
 #include "WSProvider_dPWM.h"
+#include "WSProvider_SimDevice.h"
 
 using namespace std::placeholders;
 
 // Currently, robots never terminate, so we keep static objects that are
 // never properly released or cleaned up.
 static ProviderContainer providers;
+static HALSimWSProviderSimDevices simDevices(providers);
 
 extern "C" {
 #if defined(WIN32) || defined(_WIN32)
@@ -51,6 +53,8 @@ __declspec(dllexport)
   HALSimWSProviderPWM::Initialize(registerFunc);
   HALSimWSProviderRelay::Initialize(registerFunc);
   HALSimWSProviderRoboRIO::Initialize(registerFunc);
+
+  simDevices.Initialize();
 
   HAL_SetMain(nullptr, HALSimWeb::Main, HALSimWeb::Exit);
 
