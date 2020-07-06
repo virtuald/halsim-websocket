@@ -5,8 +5,8 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#ifndef WPIUTIL_WPI_WEBSOCKETSERVERCONNECTION_H_
-#define WPIUTIL_WPI_WEBSOCKETSERVERCONNECTION_H_
+#ifndef WPIUTIL_WPI_HTTPWEBSOCKETSERVERCONNECTION_H_
+#define WPIUTIL_WPI_HTTPWEBSOCKETSERVERCONNECTION_H_
 
 #include <initializer_list>
 #include <memory>
@@ -18,19 +18,19 @@
 #include "wpi/StringRef.h"
 #include "wpi/WebSocket.h"
 #include "wpi/WebSocketServer.h"
+#include "wpi/uv/Stream.h"
 
 namespace wpi {
 
-namespace uv {
-class Stream;
-}  // namespace uv
-
 /**
  * A server-side HTTP connection that also accepts WebSocket upgrades.
+ *
+ * @tparam Derived derived class for std::enable_shared_from_this.
  */
-class WebSocketServerConnection
+template <typename Derived>
+class HttpWebSocketServerConnection
     : public HttpServerConnection,
-      public std::enable_shared_from_this<WebSocketServerConnection> {
+      public std::enable_shared_from_this<Derived> {
  public:
   /**
    * Constructor.
@@ -38,8 +38,8 @@ class WebSocketServerConnection
    * @param stream network stream
    * @param protocols Acceptable subprotocols
    */
-  explicit WebSocketServerConnection(std::shared_ptr<uv::Stream> stream,
-                                     ArrayRef<StringRef> protocols);
+  HttpWebSocketServerConnection(std::shared_ptr<uv::Stream> stream,
+                                ArrayRef<StringRef> protocols);
 
   /**
    * Constructor.
@@ -47,9 +47,9 @@ class WebSocketServerConnection
    * @param stream network stream
    * @param protocols Acceptable subprotocols
    */
-  explicit WebSocketServerConnection(std::shared_ptr<uv::Stream> stream,
-                                     std::initializer_list<StringRef> protocols)
-      : WebSocketServerConnection(
+  HttpWebSocketServerConnection(std::shared_ptr<uv::Stream> stream,
+                                std::initializer_list<StringRef> protocols)
+      : HttpWebSocketServerConnection(
             stream, makeArrayRef(protocols.begin(), protocols.end())) {}
 
  protected:
@@ -89,4 +89,6 @@ class WebSocketServerConnection
 
 }  // namespace wpi
 
-#endif  // WPIUTIL_WPI_WEBSOCKETSERVERCONNECTION_H_
+#include "HttpWebSocketServerConnection.inl"
+
+#endif  // WPIUTIL_WPI_HTTPWEBSOCKETSERVERCONNECTION_H_

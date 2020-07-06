@@ -49,9 +49,7 @@ void HALSimHttpConnection::ProcessWsUpgrade() {
       return;
     }
 
-    auto this_ptr =
-        std::static_pointer_cast<HALSimHttpConnection>(shared_from_this());
-    if (!hws->RegisterWebsocket(this_ptr)) {
+    if (!hws->RegisterWebsocket(shared_from_this())) {
       Log(409);
       m_websocket->Fail(409, "Only a single simulation websocket is allowed");
       return;
@@ -87,11 +85,9 @@ void HALSimHttpConnection::ProcessWsUpgrade() {
       wpi::errs() << "HALWebSim: websocket disconnected\n";
       m_isWsConnected = false;
 
-      auto this_ptr =
-          std::static_pointer_cast<HALSimHttpConnection>(shared_from_this());
       auto hws = HALSimWeb::GetInstance();
       if (hws) {
-        hws->CloseWebsocket(this_ptr);
+        hws->CloseWebsocket(shared_from_this());
       }
     }
   });

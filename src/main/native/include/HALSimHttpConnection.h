@@ -17,11 +17,12 @@
 #include <wpi/uv/Buffer.h>
 #include <wpi/uv/AsyncFunction.h>
 
-#include "WebSocketServerConnection.h"
+#include "HttpWebSocketServerConnection.h"
 
 class HALSimWeb;
 
-class HALSimHttpConnection : public wpi::WebSocketServerConnection {
+class HALSimHttpConnection
+    : public wpi::HttpWebSocketServerConnection<HALSimHttpConnection> {
  public:
   using BufferPool = wpi::uv::SimpleBufferPool<4>;
 
@@ -31,7 +32,7 @@ class HALSimHttpConnection : public wpi::WebSocketServerConnection {
   explicit HALSimHttpConnection(std::shared_ptr<wpi::uv::Stream> stream,
                                 wpi::StringRef webroot_sys,
                                 wpi::StringRef webroot_user)
-      : wpi::WebSocketServerConnection(stream, {}),
+      : wpi::HttpWebSocketServerConnection<HALSimHttpConnection>(stream, {}),
         m_webroot_sys(webroot_sys),
         m_webroot_user(webroot_user) {}
 

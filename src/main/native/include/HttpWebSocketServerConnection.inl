@@ -5,11 +5,15 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "WebSocketServerConnection.h"
+#ifndef WPIUTIL_WPI_HTTPWEBSOCKETSERVERCONNECTION_INL_
+#define WPIUTIL_WPI_HTTPWEBSOCKETSERVERCONNECTION_INL_
 
-using namespace wpi;
+#include <memory>
 
-WebSocketServerConnection::WebSocketServerConnection(
+namespace wpi {
+
+template <typename Derived>
+HttpWebSocketServerConnection<Derived>::HttpWebSocketServerConnection(
     std::shared_ptr<uv::Stream> stream, ArrayRef<StringRef> protocols)
     : HttpServerConnection{stream},
       m_helper{m_request},
@@ -29,7 +33,7 @@ WebSocketServerConnection::WebSocketServerConnection(
 
     // Accepting the stream may destroy this (as it replaces the stream user
     // data), so grab a shared pointer first.
-    auto self = shared_from_this();
+    auto self = this->shared_from_this();
 
     // Accept the upgrade
     auto ws = m_helper.Accept(m_stream, protocol);
@@ -44,3 +48,7 @@ WebSocketServerConnection::WebSocketServerConnection(
     ProcessWsUpgrade();
   });
 }
+
+}  // namespace wpi
+
+#endif  // WPIUTIL_WPI_HTTPWEBSOCKETSERVERCONNECTION_INL_
