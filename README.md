@@ -19,6 +19,10 @@ Add to your build.gradle
 ------------------------
 
 ```
+repositories {
+  mavenLocal()
+}
+
 // Enable simulation gui support. Must check the box in vscode to enable support
 // upon debugging
 dependencies {
